@@ -7,7 +7,6 @@ import {
   TableBody,
   Table,
 } from '@/components/ui/table'
-
 import {
   CardTitle,
   CardDescription,
@@ -15,7 +14,6 @@ import {
   CardContent,
   Card,
 } from '@/components/ui/card'
-
 import {
   ActivityIcon,
   DollarSignIcon,
@@ -23,11 +21,13 @@ import {
   ShoppingCartIcon,
   UsersIcon,
 } from '@/components/Icons'
-
 import { BarChart } from '@/components/AdminPanel/AdminBarChart'
+import { useGlobalContext } from '@/context/global.context'
 
 const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
   const [productCountByCategory, setProductCountByCategory] = useState([])
+  const { state, handleGetReservations } = useGlobalContext()
+  const { reservations } = state
 
   useEffect(() => {
     const countProductsByCategory = () => {
@@ -51,9 +51,20 @@ const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
     )
 
     setProductCountByCategory(filteredProductCountsArray)
-  }, [dataCategory])
+  }, [dataCategory]) // This ensures the effect runs every time dataCategory changes
 
-  const rentalsData = [] //! luego se va a cambiar por la data de los alquileres
+  useEffect(() => {
+    handleGetReservations()
+  }, [handleGetReservations])
+
+  const totalRentedProducts = reservations.reduce(
+    (acc, reservation) => acc + reservation.products.length,
+    0
+  )
+
+  const equipmentUtilizationPercentage = productCount
+    ? ((totalRentedProducts / productCount) * 100).toFixed(0)
+    : 0
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6'>
@@ -91,7 +102,7 @@ const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
               </div>
               <div className='flex items-center justify-between'>
                 <div>
-                  <h3 className='text-2xl font-bold'>0</h3>
+                  <h3 className='text-2xl font-bold'>{reservations.length}</h3>
                   <p className='text-gray-500 dark:text-gray-400'>
                     Total de Pedidos
                   </p>
@@ -109,7 +120,9 @@ const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
               </div>
               <div className='flex items-center justify-between'>
                 <div>
-                  <h3 className='text-2xl font-bold'>0%</h3>
+                  <h3 className='text-2xl font-bold'>
+                    {equipmentUtilizationPercentage}%
+                  </h3>
                   <p className='text-gray-500 dark:text-gray-400'>
                     Utilización de Equipos
                   </p>
@@ -138,25 +151,32 @@ const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {rentalsData && rentalsData.length > 0 ? (
+            {reservations && reservations.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Rental ID</TableHead>
                     <TableHead>Equipo</TableHead>
-                    <TableHead>Fecha de Inicio</TableHead>
-                    <TableHead>Fecha de Fin</TableHead>
+                    <TableHead>Fecha de Entrada</TableHead>
+                    <TableHead>Fecha de Salida</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rentalsData.map((rental) => (
-                    <TableRow key={rental.id}>
-                      <TableCell>{rental.client}</TableCell>
-                      <TableCell>{rental.equipment}</TableCell>
-                      <TableCell>{rental.startDate}</TableCell>
-                      <TableCell>{rental.endDate}</TableCell>
-                    </TableRow>
-                  ))}
+                  {reservations
+                    .sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn)) // Ordena de más nuevo a más viejo
+                    .slice(0, 5) // Toma los primeros 5 elementos después de ordenar
+                    .map((rental) => (
+                      <TableRow key={rental.id}>
+                        <TableCell>{rental.id}</TableCell>
+                        <TableCell>{rental.products[0]?.name}</TableCell>
+                        <TableCell>
+                          {new Date(rental.dateIn).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(rental.dateOut).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             ) : (
@@ -181,12 +201,18 @@ const AdminDashboard = ({ productCount, userCount, users, dataCategory }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.slice(-10).map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                    </TableRow>
-                  ))}
+                  {users
+                    .sort(
+                      (a, b) =>
+                        new Date(b.registeredDate) - new Date(a.registeredDate)
+                    )
+                    .slice(0, 5)
+                    .map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             ) : (

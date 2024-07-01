@@ -38,7 +38,18 @@ import {
   deleteFeature,
   getFeaturesByProduct,
 } from '@/services/featuresAPI'
+import {
+  getReservations,
+  getReservationById,
+  addReservation,
+  getReservationsByUser,
+} from '@/services/reservationAPI'
 import { getRole } from '@/services/roleAPI'
+import {
+  getQualifyByProduct,
+  getQualifyByUser,
+  postQualify,
+} from '@/services/qualifyAPI'
 
 export const ContextGlobal = createContext(undefined)
 
@@ -361,6 +372,117 @@ export const ContextProvider = ({ children }) => {
     dispatch({ type: 'CHANGE_THEME' })
   }
 
+  const handleGetReservationsByUser = useCallback(async (email) => {
+    try {
+      const data = await getReservationsByUser(email)
+      if (data) {
+        dispatch({ type: 'GET_RESERVATIONS_BY_USER', payload: data })
+      } else {
+        throw new Error('Failed to fetch reservations by user')
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
+
+  const handleGetReservations = useCallback(async () => {
+    try {
+      const data = await getReservations()
+      if (data) {
+        dispatch({ type: 'GET_RESERVATIONS', payload: data })
+      } else {
+        throw new Error('Failed to fetch reservation data')
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
+
+  const handleGetReservationById = useCallback(async (id) => {
+    if (!id) {
+      throw new Error('Reservation ID is required')
+    }
+    const data = await getReservationById(id)
+    if (data) {
+      dispatch({ type: 'GET_RESERVATION_DETAIL', payload: data })
+    } else {
+      throw new Error('Failed to fetch reservation detail')
+    }
+  }, [])
+
+  const handleAddReservation = useCallback(
+    async (productId, userId, reservation) => {
+      if (!productId || !userId || !reservation) {
+        throw new Error(
+          'Product ID, User ID, and reservation details are required'
+        )
+      }
+      const data = await addReservation(productId, userId, reservation)
+      if (data) {
+        dispatch({ type: 'ADD_RESERVATION', payload: data })
+      } else {
+        throw new Error('Failed to add reservation')
+      }
+    },
+    []
+  )
+
+  const handleGetQualifyByProduct = useCallback(async (productId) => {
+    try {
+      const data = await getQualifyByProduct(productId)
+      if (data) {
+        dispatch({ type: 'GET_QUALIFY_BY_PRODUCT', payload: data })
+      } else {
+        throw new Error('Failed to fetch qualify by product')
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
+
+  const handleGetQualifyByUser = useCallback(async (userEmail) => {
+    try {
+      const data = await getQualifyByUser(userEmail)
+      if (data) {
+        dispatch({ type: 'GET_QUALIFY_BY_USER', payload: data })
+      } else {
+        throw new Error('Failed to fetch qualify by user')
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
+
+  const handleAddQualify = useCallback(
+    async (userEmail, productId, reservationId, rating, comment) => {
+      try {
+        const data = await postQualify(
+          userEmail,
+          productId,
+          reservationId,
+          rating,
+          comment
+        )
+        if (data) {
+          dispatch({ type: 'ADD_QUALIFY', payload: data })
+        } else {
+          throw new Error('Failed to add qualify')
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    handleGetCategory()
+  }, [handleGetCategory])
+
+  useEffect(() => {
+    handleGetReservations()
+  }, [handleGetReservations])
+
   useEffect(() => {
     handleGetFeatures()
   }, [handleGetFeatures])
@@ -423,6 +545,13 @@ export const ContextProvider = ({ children }) => {
     handleAddFav,
     handleDelFav,
     handleClearFavs,
+    handleGetReservations,
+    handleGetReservationById,
+    handleGetReservationsByUser,
+    handleAddReservation,
+    handleGetQualifyByProduct,
+    handleGetQualifyByUser,
+    handleAddQualify,
   }
 
   return (

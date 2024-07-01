@@ -38,32 +38,49 @@ const AddProductDialog = () => {
     watch,
     control,
   } = useForm()
-  const [characteristic, setCharacteristic] = useState('')
-  const [characteristics, setCharacteristics] = useState([])
   const [imageFiles, setImageFiles] = useState([])
   const [imageUrls, setImageUrls] = useState([])
   const [isOpen, setIsOpen] = useState(false)
   const { state, handleAddProduct } = useGlobalContext()
-  const { dataCategory: categories } = state
+  const { dataCategory: categories, dataFeature: features } = state
   const { uploadImage, isUploading } = useCloudinary()
+  const [selectedFeatures, setSelectedFeatures] = useState([])
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files)
-    setImageFiles(files)
+    setImageFiles([...imageFiles, ...files])
     const urls = files.map((file) => URL.createObjectURL(file))
-    setImageUrls(urls)
+    setImageUrls([...imageUrls, ...urls])
   }
 
-  const handleAddCharacteristic = () => {
-    if (characteristic.trim()) {
-      setCharacteristics([...characteristics, characteristic.trim()])
-      setCharacteristic('')
-    }
+  const handleDragOver = (e) => {
+    e.preventDefault()
   }
 
-  const handleRemoveCharacteristic = (index) => {
-    const newCharacteristics = characteristics.filter((_, i) => i !== index)
-    setCharacteristics(newCharacteristics)
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const files = Array.from(e.dataTransfer.files)
+    setImageFiles([...imageFiles, ...files])
+    const urls = files.map((file) => URL.createObjectURL(file))
+    setImageUrls([...imageUrls, ...urls])
+  }
+
+  const handleFeatureChange = (featureId) => {
+    setSelectedFeatures((prevSelectedFeatures) => {
+      if (prevSelectedFeatures.includes(featureId)) {
+        return prevSelectedFeatures.filter((id) => id !== featureId)
+      } else {
+        return [...prevSelectedFeatures, featureId]
+      }
+    })
+  }
+
+  const handleRemoveImage = (index, e) => {
+    e.stopPropagation()
+    const newImageFiles = imageFiles.filter((_, i) => i !== index)
+    const newImageUrls = imageUrls.filter((_, i) => i !== index)
+    setImageFiles(newImageFiles)
+    setImageUrls(newImageUrls)
   }
 
   const onSubmit = async (data) => {
@@ -78,8 +95,8 @@ const AddProductDialog = () => {
       handleAddProduct({
         ...data,
         price: parseFloat(data.price),
-        characteristics: characteristics.map((char) => ({
-          characteristic: char,
+        characteristics: selectedFeatures.map((id) => ({
+          id: parseInt(id, 10),
         })),
         images: uploadedImageUrls,
         category: selectedCategory,
@@ -88,9 +105,9 @@ const AddProductDialog = () => {
 
       toast.success('Producto agregado con éxito')
       reset()
-      setCharacteristics([])
       setImageFiles([])
       setImageUrls([])
+      setSelectedFeatures([])
       setIsOpen(false)
     } catch (error) {
       console.error('Error al agregar el producto:', error)
@@ -115,7 +132,7 @@ const AddProductDialog = () => {
             Completa el formulario para agregar un nuevo producto a la tienda.
           </DialogDescription>
         </DialogHeader>
-        <CardContent>
+        <CardContent className='overflow-y-auto max-h-[80vh]'>
           <form className='grid gap-4' onSubmit={handleSubmit(onSubmit)}>
             <div className='grid gap-2'>
               <Label htmlFor='name'>Nombre</Label>
@@ -154,32 +171,49 @@ const AddProductDialog = () => {
               <p>Total {descriptionValue.length}/1000 caracteres</p>
             </div>
             <div className='grid gap-2'>
-              <Label htmlFor='characteristic'>Características</Label>
-              <div className='flex'>
-                <Input
-                  id='characteristic'
-                  placeholder='Características del producto'
-                  value={characteristic}
-                  onChange={(e) => setCharacteristic(e.target.value)}
-                  className='mr-2'
-                />
-                <Button type='button' onClick={handleAddCharacteristic}>
-                  Añadir
-                </Button>
+              <Label htmlFor='characteristics'>Características</Label>
+              <div className='grid gap-2'>
+                <Select onValueChange={handleFeatureChange}>
+                  <SelectTrigger className='w-full'>
+                    <SelectValue placeholder='Selecciona características' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Características</SelectLabel>
+                      {features.map((feature) => (
+                        <SelectItem key={feature.id} value={String(feature.id)}>
+                          {feature.characteristic}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {errors.characteristics && (
+                  <span className='text-red-500 text-sm'>
+                    {errors.characteristics.message}
+                  </span>
+                )}
               </div>
-              <div className='flex flex-wrap gap-2 mt-2'>
-                {characteristics.map((char, index) => (
-                  <Badge key={index} className='flex items-center space-x-2'>
-                    <span>{char}</span>
-                    <button
-                      type='button'
-                      onClick={() => handleRemoveCharacteristic(index)}
-                      className='ml-2 text-red-500'
+              <div className='grid grid-cols-2 gap-2'>
+                {selectedFeatures.map((id) => {
+                  const feature = features.find(
+                    (feature) => feature.id === parseInt(id, 10)
+                  )
+                  return (
+                    <Badge
+                      key={id}
+                      className='flex items-center justify-between'
                     >
-                      x
-                    </button>
-                  </Badge>
-                ))}
+                      {feature.characteristic}
+                      <Button
+                        variant='ghost'
+                        onClick={() => handleFeatureChange(id)}
+                      >
+                        x
+                      </Button>
+                    </Badge>
+                  )
+                })}
               </div>
             </div>
             <div className='grid gap-2 md:grid-cols-2 md:gap-4'>
@@ -257,25 +291,54 @@ const AddProductDialog = () => {
             </div>
             <div className='grid gap-2'>
               <Label htmlFor='image'>Imágenes</Label>
-              <Input
-                id='image'
-                type='file'
-                accept='image/*'
-                multiple
-                onChange={handleImageChange}
-              />
-              {imageUrls.length > 0 && (
-                <div className='grid grid-cols-4 gap-2'>
-                  {imageUrls.map((url, index) => (
-                    <img
-                      key={index}
-                      src={url}
-                      alt={`Imagen previa ${index + 1}`}
-                      className='w-20 h-20 object-cover'
-                    />
-                  ))}
-                </div>
-              )}
+              <div
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('image').click()}
+                className='border-2 border-dashed border-primary rounded-lg p-8 flex flex-col items-center justify-center h-64 cursor-pointer relative'
+              >
+                {imageUrls.length === 0 && (
+                  <>
+                    <UploadIcon className='w-12 h-12 text-primary' />
+                    <p className='text-primary font-semibold'>
+                      Arrastra y suelta imágenes aquí
+                    </p>
+                    <p className='text-muted-foreground'>
+                      o haz clic para seleccionar archivos
+                    </p>
+                  </>
+                )}
+                <input
+                  id='image'
+                  type='file'
+                  accept='image/*'
+                  multiple
+                  onChange={handleImageChange}
+                  className='hidden'
+                />
+                {imageUrls.length > 0 && (
+                  <div className='absolute inset-0 grid grid-cols-4 gap-2 p-2'>
+                    {imageUrls.map((url, index) => (
+                      <div key={index} className='relative'>
+                        <button
+                          type='button'
+                          onClick={(e) => handleRemoveImage(index, e)}
+                          className='absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center'
+                        >
+                          x
+                        </button>
+                        <div className='border rounded-lg overflow-hidden'>
+                          <img
+                            src={url}
+                            alt={`Imagen previa ${index + 1}`}
+                            className='w-full h-full object-cover'
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <Button className='w-full' type='submit' disabled={isUploading}>
               {isUploading ? 'Subiendo imágenes...' : 'Crear Producto'}
@@ -284,6 +347,27 @@ const AddProductDialog = () => {
         </CardContent>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function UploadIcon(props) {
+  return (
+    <svg
+      {...props}
+      xmlns='http://www.w3.org/2000/svg'
+      width='24'
+      height='24'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    >
+      <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
+      <polyline points='17 8 12 3 7 8' />
+      <line x1='12' y1='3' x2='12' y2='15' />
+    </svg>
   )
 }
 

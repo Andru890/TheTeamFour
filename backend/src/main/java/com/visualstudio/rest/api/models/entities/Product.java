@@ -44,23 +44,28 @@ public class Product {
     @Column(name="reserved", nullable = false )
     private boolean isReserved;
 
-    @Column(name = "date_in")
+    /*@Column(name = "date_in")
     private Date dateIn;
 
     @Column(name = "date_out")
-    private Date dateOut;
+    private Date dateOut;*/
 
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", foreignKey = @ForeignKey(name = "FK_CATEGORY_ID"))
     @JsonIgnoreProperties({"hibernateLazyInitializer", "products"})
     private Category category;
 
-    @ManyToMany(mappedBy = "products")
+    @ManyToMany(mappedBy = "products",cascade = CascadeType.ALL )
     @JsonIgnoreProperties({"hibernateLazyInitializer", "products"})
     private List<Reservation> reservations;
 
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"product", "hibernateLazyInitializer"})
+    @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "product_has_detail",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "products_detail_id")
+    )
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "products_detail"})
     private List<ProductDetail> characteristics;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)

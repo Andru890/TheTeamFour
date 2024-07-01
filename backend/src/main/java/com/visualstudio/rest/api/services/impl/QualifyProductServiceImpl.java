@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -57,11 +56,10 @@ public class QualifyProductServiceImpl implements IQualifyProductService {
         }
 
         Product product = productRepository.findById(productId).get();
-        if (product == null) {// Falta hacer una validación para los productos de la reserva
+        if (product == null){ // Falta hacer una validación para los productos de la reserva
             throw new IllegalArgumentException("El producto no existe");
         }
-
-        if (reservation.getUser().getId() == user.getId()){
+        if (reservation.getUser().getId() == user.getId() && reservation.getProducts().contains(product)){
             QualifyProduct newQualify = new QualifyProduct();
             newQualify.setUser(user);
             newQualify.setProduct(product);

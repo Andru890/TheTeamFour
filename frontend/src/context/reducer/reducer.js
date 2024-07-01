@@ -202,6 +202,50 @@ export const reducer = (state, action) => {
       return { ...state, favs: [] }
     case 'CHANGE_THEME':
       return { ...state, theme: state.theme === 'light' ? 'dark' : 'light' }
+    case 'GET_RESERVATIONS':
+      return {
+        ...state,
+        reservations: action.payload,
+      }
+    case 'GET_RESERVATIONS_BY_USER':
+      return {
+        ...state,
+        reservations: action.payload,
+      }
+    case 'GET_RESERVATION_DETAIL':
+      return {
+        ...state,
+        reservationSelected: action.payload,
+      }
+    case 'ADD_RESERVATION':
+      return {
+        ...state,
+        reservations: [...state.reservations, action.payload],
+      }
+    case 'DELETE_RESERVATION':
+      return {
+        ...state,
+        reservations: state.reservations.filter(
+          (reservation) => reservation.id !== action.payload
+        ),
+      }
+    case 'GET_QUALIFY_BY_PRODUCT':
+      return {
+        ...state,
+        dataQualify: action.payload,
+      }
+
+    case 'GET_QUALIFY_BY_USER':
+      return {
+        ...state,
+        dataUserQualify: action.payload,
+      }
+
+    case 'ADD_QUALIFY':
+      return {
+        ...state,
+        dataQualify: [...state.dataQualify, action.payload],
+      }
 
     default:
       return state

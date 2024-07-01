@@ -10,14 +10,19 @@ export const AuthProvider = ({ children }) => {
     const storedUser = sessionStorage.getItem('user')
     return storedUser ? JSON.parse(storedUser) : null
   })
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => !!sessionStorage.getItem('token')
+  )
 
   useEffect(() => {
     if (user) {
       sessionStorage.setItem('user', JSON.stringify(user))
       sessionStorage.setItem('token', user.token)
+      setIsAuthenticated(true)
     } else {
       sessionStorage.removeItem('user')
       sessionStorage.removeItem('token')
+      setIsAuthenticated(false)
     }
   }, [user])
 
@@ -86,6 +91,7 @@ export const AuthProvider = ({ children }) => {
         }
       )
       setUser(null)
+      setIsAuthenticated(false)
     } catch (error) {
       console.error('Error during logout:', error)
       throw error
@@ -109,18 +115,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = sessionStorage.getItem('token')
       const userData = {
-        id: updatedUser.id,
         name: updatedUser.name,
         lastname: updatedUser.lastname,
         phone: updatedUser.phone,
         email: updatedUser.email,
         city: updatedUser.city,
         imageUrl: updatedUser.imageUrl,
-        roles: updatedUser.roles.map((role) => role.authority || role), // Convertimos los roles a strings si es necesario
+        roles: updatedUser.roles?.map((role) => role.authority || role) || [], // Convertimos los roles a strings si es necesario
       }
       console.log('Updating user with data:', userData)
       const response = await axios.put(
-        `${API_URL}/user/${updatedUser.id}`,
+        `${API_URL}/user/${updatedUser.email}`,
         userData,
         {
           headers: {
@@ -130,9 +135,9 @@ export const AuthProvider = ({ children }) => {
       )
       console.log('Response from update user:', response.data)
 
-      // Mantener el token al actualizar el usuario
+      // No actualizar el sessionStorage, solo el estado del contexto
       const updatedUserData = { ...response.data, token }
-      setUser(updatedUserData)
+      setUser((prevUser) => ({ ...prevUser, ...updatedUserData }))
     } catch (error) {
       console.error('Error updating user:', error)
       throw error
@@ -143,6 +148,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        isAuthenticated,
         login,
         logout,
         register,

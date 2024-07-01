@@ -23,6 +23,10 @@ export const initialState = {
   featureSelected: {},
   dataRole: [],
   roleSelected: {},
+  reservations: [],
+  reservationSelected: null,
+  qualify: [],
+  qualifySelected: {},
   favs: selecFavs(),
   theme: selecTheme(),
 }

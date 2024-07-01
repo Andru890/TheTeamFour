@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { useGlobalContext } from '@/context/global.context'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
@@ -10,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableHeader,
@@ -20,71 +22,40 @@ import {
 } from '@/components/ui/table'
 import { SearchIcon } from '@/components/Icons'
 
-const AdminUsersTable = () => {
+const AdminOrdersTable = () => {
+  const { state, handleGetReservations } = useGlobalContext()
+  const { reservations } = state
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState({ key: 'id', order: 'asc' })
   const [filters, setFilters] = useState({
     status: [],
-    customer: [],
   })
-  const orders = useMemo(
+
+  useEffect(() => {
+    handleGetReservations()
+  }, [handleGetReservations])
+
+  const filteredOrders = useMemo(
     () =>
-      [
-        {
-          id: 'INV001',
-          date: '2024-05-01',
-          customer: 'Wilson Del Canto',
-          total: 250.99,
-          status: 'Finalizada',
-        },
-        {
-          id: 'INV002',
-          date: '2024-04-15',
-          customer: 'Camilo Patiño',
-          total: 150.0,
-          status: 'En Proceso',
-        },
-        {
-          id: 'INV003',
-          date: '2024-03-20',
-          customer: 'Sofia Brugo',
-          total: 350.75,
-          status: 'Cancelada',
-        },
-        {
-          id: 'INV004',
-          date: '2024-02-10',
-          customer: 'Andres Pristone',
-          total: 450.0,
-          status: 'Finalizada',
-        },
-        {
-          id: 'INV005',
-          date: '2024-01-05',
-          customer: 'Paula Palacios',
-          total: 550.5,
-          status: 'En Proceso',
-        },
-      ]
+      reservations
+        .map((order) => ({
+          ...order,
+          productName:
+            order.products.length > 0 ? order.products[0].name : 'N/A',
+          productId: order.products.length > 0 ? order.products[0].id : 'N/A',
+        }))
         .filter((order) => {
           const searchValue = search.toLowerCase()
           return (
-            order.id.toLowerCase().includes(searchValue) ||
-            order.customer.toLowerCase().includes(searchValue) ||
-            order.total.toString().toLowerCase().includes(searchValue) ||
-            order.status.toLowerCase().includes(searchValue)
+            String(order.id).toLowerCase().includes(searchValue) ||
+            order.status.toLowerCase().includes(searchValue) ||
+            order.productName.toLowerCase().includes(searchValue)
           )
         })
         .filter((order) => {
           if (
             filters.status.length > 0 &&
             !filters.status.includes(order.status)
-          ) {
-            return false
-          }
-          if (
-            filters.customer.length > 0 &&
-            !filters.customer.includes(order.customer)
           ) {
             return false
           }
@@ -97,8 +68,9 @@ const AdminUsersTable = () => {
             return a[sort.key] < b[sort.key] ? 1 : -1
           }
         }),
-    [search, sort, filters]
+    [reservations, search, sort, filters]
   )
+
   const handleSort = (key) => {
     if (sort.key === key) {
       setSort({ key, order: sort.order === 'asc' ? 'desc' : 'asc' })
@@ -106,6 +78,7 @@ const AdminUsersTable = () => {
       setSort({ key, order: 'asc' })
     }
   }
+
   const handleFilterChange = (type, value) => {
     if (type === 'status') {
       setFilters({
@@ -114,21 +87,15 @@ const AdminUsersTable = () => {
           ? filters.status.filter((item) => item !== value)
           : [...filters.status, value],
       })
-    } else if (type === 'customer') {
-      setFilters({
-        ...filters,
-        customer: filters.customer.includes(value)
-          ? filters.customer.filter((item) => item !== value)
-          : [...filters.customer, value],
-      })
     }
   }
+
   return (
     <main className='flex flex-col gap-4 p-4 md:p-6'>
       <div className='flex items-center gap-4'>
         <div className='relative w-full'>
           <Input
-            placeholder='Buscar ordenes...'
+            placeholder='Buscar órdenes...'
             className='bg-white dark:bg-gray-950 pl-8'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -145,11 +112,18 @@ const AdminUsersTable = () => {
           <DropdownMenuContent className='w-[200px]' align='end'>
             <DropdownMenuRadioGroup value={sort.key} onValueChange={handleSort}>
               <DropdownMenuRadioItem value='id'>Orden #</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value='date'>Fecha</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value='customer'>
-                Cliente
+              <DropdownMenuRadioItem value='productName'>
+                Nombre del Producto
               </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value='total'>Total</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value='productId'>
+                ID del Producto
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value='dateIn'>
+                Fecha de Entrada
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value='dateOut'>
+                Fecha de Salida
+              </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value='status'>
                 Estado
               </DropdownMenuRadioItem>
@@ -167,30 +141,30 @@ const AdminUsersTable = () => {
             <div className='grid gap-2'>
               <Label className='flex items-center gap-2 font-normal'>
                 <Checkbox
-                  checked={filters.status.includes('Finalizada')}
+                  checked={filters.status.includes('reserved')}
                   onCheckedChange={() =>
-                    handleFilterChange('status', 'Finalizada')
+                    handleFilterChange('status', 'reserved')
                   }
                 />
-                Finalizada
+                Reservado
               </Label>
               <Label className='flex items-center gap-2 font-normal'>
                 <Checkbox
-                  checked={filters.status.includes('En Proceso')}
+                  checked={filters.status.includes('completed')}
                   onCheckedChange={() =>
-                    handleFilterChange('status', 'En Proceso')
+                    handleFilterChange('status', 'completed')
                   }
                 />
-                En Proceso
+                Completado
               </Label>
               <Label className='flex items-center gap-2 font-normal'>
                 <Checkbox
-                  checked={filters.status.includes('Cancelada')}
+                  checked={filters.status.includes('cancelled')}
                   onCheckedChange={() =>
-                    handleFilterChange('status', 'Cancelada')
+                    handleFilterChange('status', 'cancelled')
                   }
                 />
-                Cancelada
+                Cancelado
               </Label>
             </div>
           </DropdownMenuContent>
@@ -214,10 +188,10 @@ const AdminUsersTable = () => {
               </TableHead>
               <TableHead
                 className='cursor-pointer'
-                onClick={() => handleSort('date')}
+                onClick={() => handleSort('productName')}
               >
-                Fecha
-                {sort.key === 'date' && (
+                Nombre del Producto
+                {sort.key === 'productName' && (
                   <span className='ml-1'>
                     {sort.order === 'asc' ? '\u2191' : '\u2193'}
                   </span>
@@ -225,21 +199,43 @@ const AdminUsersTable = () => {
               </TableHead>
               <TableHead
                 className='cursor-pointer'
-                onClick={() => handleSort('customer')}
+                onClick={() => handleSort('productId')}
               >
-                Cliente
-                {sort.key === 'customer' && (
+                ID del Producto
+                {sort.key === 'productId' && (
                   <span className='ml-1'>
                     {sort.order === 'asc' ? '\u2191' : '\u2193'}
                   </span>
                 )}
               </TableHead>
               <TableHead
-                className='text-right cursor-pointer'
-                onClick={() => handleSort('total')}
+                className='cursor-pointer'
+                onClick={() => handleSort('productName')}
               >
-                Total
-                {sort.key === 'total' && (
+                Correo Electrónico
+                {sort.key === 'productName' && (
+                  <span className='ml-1'>
+                    {sort.order === 'asc' ? '\u2191' : '\u2193'}
+                  </span>
+                )}
+              </TableHead>
+              <TableHead
+                className='cursor-pointer'
+                onClick={() => handleSort('dateIn')}
+              >
+                Fecha de Entrega
+                {sort.key === 'dateIn' && (
+                  <span className='ml-1'>
+                    {sort.order === 'asc' ? '\u2191' : '\u2193'}
+                  </span>
+                )}
+              </TableHead>
+              <TableHead
+                className='cursor-pointer'
+                onClick={() => handleSort('dateOut')}
+              >
+                Fecha de Devolución
+                {sort.key === 'dateOut' && (
                   <span className='ml-1'>
                     {sort.order === 'asc' ? '\u2191' : '\u2193'}
                   </span>
@@ -259,26 +255,31 @@ const AdminUsersTable = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell className='font-medium'>{order.id}</TableCell>
-                <TableCell>{order.date}</TableCell>
-                <TableCell>{order.customer}</TableCell>
-                <TableCell className='text-right'>
-                  ${order.total.toFixed(2)}
+                <TableCell>{order.productName}</TableCell>
+                <TableCell>{order.productId}</TableCell>
+                <TableCell>{order.email}</TableCell>
+                <TableCell>
+                  {new Date(order.dateIn).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      order.status === 'Finalizada'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : order.status === 'En Proceso'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  {new Date(order.dateOut).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      order.status === 'Devuelto' ? 'success' : 'warning'
+                    }
+                    className={` ${
+                      order.reserved
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     }`}
                   >
-                    {order.status}
-                  </span>
+                    {order.reserved ? 'Devuelto' : 'Reservado'}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}
@@ -289,7 +290,7 @@ const AdminUsersTable = () => {
   )
 }
 
-export default AdminUsersTable
+export default AdminOrdersTable
 
 function ArrowUpDownIcon(props) {
   return (

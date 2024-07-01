@@ -21,7 +21,9 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +34,6 @@ public class ProductServiceImpl implements IProductService {
     private final CategoryRepository categoryRepository;
     private final ModelMapper mapper;
     private final ProductDetailRepository productDetailRepository;
-    private final ReservationRepository reservationRepository;
-    private final UserRepository userRepository;
 
     @Override
     public List<ProductDTO> getAll() {
@@ -45,6 +45,7 @@ public class ProductServiceImpl implements IProductService {
 
     @Override
     public Product save(Product product) {
+        Product newProduct = product;
 
         List<Product> products = productRepository.findAll();
         for (Product foundProduct : products) {
@@ -58,24 +59,21 @@ public class ProductServiceImpl implements IProductService {
         for (String url : urlImages) {
             newImages.add(url);
         }
-        product.setImages(newImages);
+        newProduct.setImages(newImages);
 
         Category category = categoryRepository.findById(product.getCategory().getId())
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("No existe Categoria con id %s", product.getCategory().getId())));
-        product.setCategory(category);
-
-        Product savedProduct = productRepository.save(product);
+        newProduct.setCategory(category);
 
         List<ProductDetail> characteristics = product.getCharacteristics();
+        Set<Long> characteristicsIds = new HashSet<>();
+        for (ProductDetail detail : characteristics) {
+            characteristicsIds.add(detail.getId());
+        }
+        List<ProductDetail> foundCharacteristic = productDetailRepository.findByIdIn(characteristicsIds);
+        newProduct.setCharacteristics(foundCharacteristic);
+        Product savedProduct = productRepository.save(newProduct);
 
-        characteristics.forEach(c -> {
-            ProductDetail characteristic = ProductDetail
-                    .builder()
-                    .characteristic(c.getCharacteristic())
-                    .product(savedProduct)
-                    .build();
-            productDetailRepository.save(characteristic);
-        });
         return savedProduct;
     }
 
@@ -97,6 +95,14 @@ public class ProductServiceImpl implements IProductService {
         }
         productFound.setImages(newImages);
 
+        List<ProductDetail> existingCharacteristics = productFound.getCharacteristics();
+        List<ProductDetail> newCharacteristics = new ArrayList<>();
+        for (ProductDetail productDetail : existingCharacteristics) {
+            if (!existingCharacteristics.contains(productDetail)) {
+                newCharacteristics.add(productDetail);
+            }
+        }
+        productFound.setCharacteristics(newCharacteristics);
 
         return convertProductToDTO(productRepository.save(productFound));
     }
@@ -121,31 +127,6 @@ public class ProductServiceImpl implements IProductService {
     @Override
     public void delete(Long id) {
         productRepository.deleteById(id);
-    }
-
-    @Override
-    public ProductDTO preReservation(Long productId, Long userId, ReservationProductDTO reservationProductDTO) {
-
-        Product productFound = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("No existe Producto con id %s", productId)));
-
-        productFound.setDateIn(reservationProductDTO.getDateIn());
-        productFound.setDateOut(reservationProductDTO.getDateOut());
-        productFound.setReserved(true);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("No existe Usuario con id %s", userId)));
-
-        Reservation reservation = Reservation
-                .builder()
-                .user(user)
-                .products(List.of(productFound))
-                .status("reserved")
-                .build();
-
-        reservationRepository.save(reservation);
-
-        return convertProductToDTO(productRepository.save(productFound));
     }
 
     private ProductDTO convertProductToDTO(Product product) {
